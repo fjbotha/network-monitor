@@ -1,0 +1,6 @@
+user: __USER__
+allowable_downtime: 5
+error_log_interval: 5
+notify_interval: 30
+silent: True
+dst_ip: 8.8.8.8

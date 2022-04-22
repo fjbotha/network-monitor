@@ -5,6 +5,7 @@ import time
 import sys
 import subprocess
 import datetime
+import yaml
 import logging
 log = None
 
@@ -28,10 +29,21 @@ def _usage():
     parser.add_argument(
         "-s", "--silent", help="Do not issue audible beeps when alerting",
         action='store_true')
+    parser.add_argument('--config', help="configuration file *.yml", type=str, default='config.yml')
     parser.add_argument("--log-level", help="Log level",
                         type=int, default=logging.INFO)
-    parser.add_argument("user", help="User to notify", type=str)
-    return parser
+    parser.add_argument("--user", help="User to notify", type=str)
+
+    args = parser.parse_args()
+
+    # Merge in yaml config file. Commandline arguments take precedence.
+    with open(args.config, 'r') as f:
+        t_args = argparse.Namespace()
+        yargs = yaml.load(f, Loader=yaml.FullLoader)
+        t_args.__dict__.update(yargs)
+        args = parser.parse_args(namespace=t_args)
+
+    return args
 
 
 def ping1(ip):
@@ -85,7 +97,7 @@ class Notifier():
 
 
 def main():
-    args = _usage().parse_args()
+    args = _usage()
     setup_logging(args)
     log.info("Starting.")
     log.info(args)
