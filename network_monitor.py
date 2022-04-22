@@ -121,7 +121,8 @@ def main():
                     msg = "Network monitor: Offline for %.1f seconds." % delta
                     log.error(msg)
                     last_logged = datetime.datetime.now()
-                if (now - last_notify).total_seconds() > args.notify_interval:
+                if args.notify_interval and \
+                (now - last_notify).total_seconds() > args.notify_interval:
                     notifier.notify(msg)
                     last_notify = datetime.datetime.now()
         else:
