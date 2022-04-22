@@ -5,6 +5,8 @@ import time
 import sys
 import subprocess
 import datetime
+import logging
+log = None
 #from gi.repository import Notify
 
 
@@ -12,6 +14,21 @@ def _usage():
     parser = argparse.ArgumentParser(description="ping-based network monitor")
     parser.add_argument("-d", "--dst-ip", help="Destination IP",
                         type=str, default="8.8.8.8")
+    parser.add_argument(
+        "--allowable-downtime",
+        help="Time duration in seconds for which connectivity loss is not considered an error",
+        type=int, default=5)
+    parser.add_argument(
+        "--error-log-interval",
+        help="Minimum duration in seconds before which subsequent error messages will be logged",
+        type=int, default=5)
+    parser.add_argument(
+        "--notify-interval",
+        help="Minimum duration in seconds before which subsequent graphical notifications will be issued (0 == disabled)",
+        type=int, default=30)
+    parser.add_argument(
+        "-s", "--silent", help="Do not issue audible beeps when alerting",
+        action='store_true')
     return parser
 
 
@@ -24,7 +41,8 @@ def ping1(ip):
             tx = ans[0][0]
             return rx.time-tx.sent_time
         except:
-            print(ans)
+            log.critical("Unexpected return:")
+            log.critical(ans)
             pass
 
     return None
@@ -36,23 +54,39 @@ def beep():
         time.sleep(50e-3)
 
 
+def setup_logging(args):
+    global log
+    log = logging.getLogger("Network-Monitor " + args.dst_ip)
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S')
+
+
 def main():
     args = _usage().parse_args()
+    setup_logging(args)
+    log.info("Starting.")
+    log.info(args)
     #Notify.init('Network Monitor')
 
     uptime = datetime.datetime.now()
+    last_logged = datetime.datetime(1970, 1, 1)
     last_notify = datetime.datetime(1970, 1, 1)
     while True:
         s = ping1(args.dst_ip)
         if s is None:
-            beep()
+            if not args.silent:
+                beep()
             now = datetime.datetime.now()
             offline_duration = now - uptime
             delta = offline_duration.total_seconds()
-            if delta > 1:
-                if (now - last_notify).total_seconds() > 30:
+            if delta > args.allowable_downtime:
+                if (now - last_logged).total_seconds() > args.error_log_interval:
                     msg = "Network monitor: Offline for %.1f seconds." % delta
-                    print(msg)
+                    log.error(msg)
+                    last_logged = datetime.datetime.now()
+                if (now - last_notify).total_seconds() > args.notify_interval:
                     # notifier = Notify.Notification.new(msg)
                     # notifier.show()
                     subprocess.run(["./notify_send.sh", msg])
