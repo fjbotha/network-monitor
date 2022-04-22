@@ -1,5 +1,7 @@
 [Unit]
 Description=Ping-Based Network Monitorer
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
