@@ -29,7 +29,9 @@ def _usage():
     parser.add_argument(
         "-s", "--silent", help="Do not issue audible beeps when alerting",
         action='store_true')
-    parser.add_argument('--config', help="configuration file *.yml", type=str, default='config.yml')
+    parser.add_argument(
+        '--config', help="configuration file *.yaml", type=str,
+        default='config.yaml')
     parser.add_argument("--log-level", help="Log level",
                         type=int, default=logging.INFO)
     parser.add_argument("--user", help="User to notify", type=str)
@@ -73,7 +75,7 @@ def setup_logging(args):
     log = logging.getLogger("Network-Monitor " + args.dst_ip)
     logging.basicConfig(
         level=args.log_level,
-        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s: %(message)s',
+        format='%(levelname)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S')
 
 
@@ -84,7 +86,7 @@ class Notifier():
         cmd = "id -u %s" % user
         ret = subprocess.run(cmd.split(' '), stdout=subprocess.PIPE)
         if ret.returncode != 0:
-            throw("%s failed" % cmd)
+            raise Exception("%s failed" % cmd)
         cmd = "sudo -u %s" % user
         cmd += " DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%s/bus" % str(
             int(ret.stdout))

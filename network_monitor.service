@@ -1,0 +1,9 @@
+[Unit]
+Description=Ping-Based Network Monitorer
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/network_monitor.py --config /etc/default/network-monitor.yaml
+
+[Install]
+WantedBy=multi-user.target
