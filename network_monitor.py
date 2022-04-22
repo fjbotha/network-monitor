@@ -7,7 +7,6 @@ import subprocess
 import datetime
 import logging
 log = None
-#from gi.repository import Notify
 
 
 def _usage():
@@ -29,18 +28,20 @@ def _usage():
     parser.add_argument(
         "-s", "--silent", help="Do not issue audible beeps when alerting",
         action='store_true')
+    parser.add_argument("--log-level", help="Log level",
+                        type=int, default=logging.INFO)
     return parser
 
 
 def ping1(ip):
     pkt = IP(dst=ip)/ICMP()/Raw(64*'B')
-    ans, unans = sr(pkt, filter='icmp', verbose=0, timeout=2)
+    ans, unans = sr(pkt, promisc=False, filter='icmp', verbose=0, timeout=2)
     if len(ans) > 0:
         try:
             rx = ans[0][1]
             tx = ans[0][0]
             return rx.time-tx.sent_time
-        except:
+        except Exception as e:
             log.critical("Unexpected return:")
             log.critical(ans)
             pass
@@ -58,7 +59,7 @@ def setup_logging(args):
     global log
     log = logging.getLogger("Network-Monitor " + args.dst_ip)
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=args.log_level,
         format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -68,7 +69,6 @@ def main():
     setup_logging(args)
     log.info("Starting.")
     log.info(args)
-    #Notify.init('Network Monitor')
 
     uptime = datetime.datetime.now()
     last_logged = datetime.datetime(1970, 1, 1)
@@ -87,11 +87,10 @@ def main():
                     log.error(msg)
                     last_logged = datetime.datetime.now()
                 if (now - last_notify).total_seconds() > args.notify_interval:
-                    # notifier = Notify.Notification.new(msg)
-                    # notifier.show()
                     subprocess.run(["./notify_send.sh", msg])
                     last_notify = datetime.datetime.now()
         else:
+            log.debug("Successfully reached destination.")
             uptime = datetime.datetime.now()
         time.sleep(1)
 
