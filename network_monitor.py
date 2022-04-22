@@ -30,6 +30,7 @@ def _usage():
         action='store_true')
     parser.add_argument("--log-level", help="Log level",
                         type=int, default=logging.INFO)
+    parser.add_argument("user", help="User to notify", type=str)
     return parser
 
 
@@ -64,11 +65,31 @@ def setup_logging(args):
         datefmt='%Y-%m-%d %H:%M:%S')
 
 
+class Notifier():
+    NOTIFY_SEND = "/usr/bin/notify-send"
+
+    def __init__(self, user):
+        cmd = "id -u %s" % user
+        ret = subprocess.run(cmd.split(' '), stdout=subprocess.PIPE)
+        if ret.returncode != 0:
+            throw("%s failed" % cmd)
+        cmd = "sudo -u %s" % user
+        cmd += " DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%s/bus" % str(
+            int(ret.stdout))
+        cmd += " %s" % Notifier.NOTIFY_SEND
+        self._prefix = cmd.split(' ')
+
+    def notify(self, msg):
+        cmd = self._prefix + ["\"%s\"" % msg]
+        subprocess.run(cmd)
+
+
 def main():
     args = _usage().parse_args()
     setup_logging(args)
     log.info("Starting.")
     log.info(args)
+    notifier = Notifier(args.user)
 
     uptime = datetime.datetime.now()
     last_logged = datetime.datetime(1970, 1, 1)
@@ -87,7 +108,7 @@ def main():
                     log.error(msg)
                     last_logged = datetime.datetime.now()
                 if (now - last_notify).total_seconds() > args.notify_interval:
-                    subprocess.run(["./notify_send.sh", msg])
+                    notifier.notify(msg)
                     last_notify = datetime.datetime.now()
         else:
             log.debug("Successfully reached destination.")
