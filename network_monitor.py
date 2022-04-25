@@ -48,20 +48,38 @@ def _usage():
     return args
 
 
-def ping1(ip):
-    pkt = IP(dst=ip)/ICMP()/Raw(64*'B')
-    ans, unans = sr(pkt, promisc=False, filter='icmp', verbose=0, timeout=2)
-    if len(ans) > 0:
-        try:
-            rx = ans[0][1]
-            tx = ans[0][0]
-            return rx.time-tx.sent_time
-        except Exception as e:
-            log.critical("Unexpected return:")
-            log.critical(ans)
-            pass
+class Pinger():
+    def __init__(self):
+        self._iface = ""
+        self.update_default_iface()
 
-    return None
+    def update_default_iface(self):
+        cmd = "ip -4 route show default"
+        ret = subprocess.run(cmd.split(' '), stdout=subprocess.PIPE)
+        if ret.returncode != 0:
+            return
+
+        s = str(ret.stdout)
+        iface = s.split(' ')[4]
+        if iface != self._iface:
+            log.info("Updating interface to %s." % iface)
+            self._iface = iface
+
+    def ping1(self, ip):
+        pkt = IP(dst=ip)/ICMP()/Raw(64*'B')
+        ans, unans = sr(pkt, promisc=False, filter='icmp', iface=self._iface,
+                        verbose=0, timeout=2)
+        if len(ans) > 0:
+            try:
+                rx = ans[0][1]
+                tx = ans[0][0]
+                return rx.time-tx.sent_time
+            except Exception as e:
+                log.critical("Unexpected return:")
+                log.critical(ans)
+                pass
+
+        return None
 
 
 def beep():
@@ -104,12 +122,14 @@ def main():
     log.info("Starting.")
     log.info(args)
     notifier = Notifier(args.user)
+    pinger = Pinger()
 
     uptime = datetime.datetime.now()
     last_logged = datetime.datetime(1970, 1, 1)
     last_notify = datetime.datetime(1970, 1, 1)
+    last_updated = datetime.datetime(1970, 1, 1)
     while True:
-        s = ping1(args.dst_ip)
+        s = pinger.ping1(args.dst_ip)
         if s is None:
             if not args.silent:
                 beep()
@@ -121,10 +141,13 @@ def main():
                     msg = "Network monitor: Offline for %.1f seconds." % delta
                     log.error(msg)
                     last_logged = datetime.datetime.now()
-                if args.notify_interval and \
-                (now - last_notify).total_seconds() > args.notify_interval:
+                if args.notify_interval and (
+                        now - last_notify).total_seconds() > args.notify_interval:
                     notifier.notify(msg)
                     last_notify = datetime.datetime.now()
+            if (now - last_updated).total_seconds() > 5:
+                pinger.update_default_iface()
+                last_updated = datetime.datetime.now()
         else:
             log.debug("Successfully reached destination.")
             uptime = datetime.datetime.now()
