@@ -6,6 +6,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/network_monitor.py --config /etc/default/network-monitor.yaml
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target

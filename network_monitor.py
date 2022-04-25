@@ -61,6 +61,16 @@ def ping1(ip):
             log.critical(ans)
             pass
 
+    r = pkt.route()
+    try:
+        if r is None or r[0] == "lo":
+            log.critical("Unable to find route. Exiting...")
+            sys.exit(1)
+    except Exception as e:
+        log.critical("Exception when parsing route.")
+        log.critical(e)
+        sys.exit(1)
+
     return None
 
 
