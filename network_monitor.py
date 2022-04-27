@@ -50,16 +50,21 @@ def _usage():
 
 def ping1(ip):
     pkt = IP(dst=ip)/ICMP()/Raw(64*'B')
-    ans, unans = sr(pkt, promisc=False, filter='icmp', verbose=0, timeout=2)
+    try:
+        ans, unans = sr(pkt, promisc=False, filter='icmp', verbose=0, timeout=2)
+    except Exception as e:
+        log.critical("Exception during send-receive.")
+        log.critical(e)
+        sys.exit(1)
+
     if len(ans) > 0:
         try:
             rx = ans[0][1]
             tx = ans[0][0]
             return rx.time-tx.sent_time
         except Exception as e:
-            log.critical("Unexpected return:")
-            log.critical(ans)
-            pass
+            log.error("Unexpected return:")
+            log.error(ans)
 
     r = pkt.route()
     try:
